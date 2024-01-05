@@ -7,20 +7,26 @@ class LolImageDownloader:
     def __init__(self, data_url, image_base_url):
         self.data_url = data_url
         self.image_base_url = image_base_url
-        self.champion_list = [] 
+        self.data_list = [] 
 
-    def fetch_champions(self):
-        """Fetches champion data from Riot's API."""
+    def fetchJson(self):
+        """ Fetches json data from Riot's API """
 
         response = requests.get(self.data_url)
 
         if response.status_code == 200:
             json_data = response.json()
-            champions = json_data["data"]
-            self.champion_list = list(champions.keys())
+            return json_data
 
         else:
             raise cE.FailFetch(f"Failed to fetch data. Status code: {response.status_code}")
+
+    def fetch_champions(self, key):
+        """ Fetches champion data from Riot's json """
+
+        json_data = self.fetchJson()
+        champions = json_data[key]
+        self.data_list = list(champions.keys())
         
     def download_champion_image(self, champion, version):
         champion_folder = os.path.join("champions_img", champion)
@@ -40,29 +46,30 @@ class LolImageDownloader:
             print(e)
 
     def downloadAllChampions(self, version):
-        if not self.champion_list:
+        if not self.data_list:
             raise cE.EmptyChampionList("Champion list is empty. Check fetch_champions() first.")
 
         base_folder = "champions_img"
         os.makedirs(base_folder, exist_ok=True)
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            futures = [executor.submit(self.download_champion_image, champion, version) for champion in self.champion_list]
+            futures = [executor.submit(self.download_champion_image, champion, version) for champion in self.data_list]
             concurrent.futures.wait(futures)
 
-''' Script to download the champion images based on the LolImageDownloader class'''
-try:
-    data_downloader = LolImageDownloader(
-        "https://ddragon.leagueoflegends.com/cdn/13.24.1/data/en_US/champion.json",
-        "https://ddragon.leagueoflegends.com/cdn/img/champion/splash/"
-    )
-    data_downloader.fetch_champions()
+def download(version_start, version_end):
+    ''' Script to download the champion images based on the LolImageDownloader class'''
+    try:
+        data_downloader = LolImageDownloader(
+            "https://ddragon.leagueoflegends.com/cdn/13.24.1/data/en_US/champion.json",
+            "https://ddragon.leagueoflegends.com/cdn/img/champion/splash/"
+        )
+        data_downloader.fetch_champions("data")
 
-    # The actual location of the images is not clear, so in this range, it will cover roughly 1700 skins
-    for version in range(0,65):
-        data_downloader.downloadAllChampions(str(version))
+        # The actual location of the images is not clear, so in this range, it will cover roughly 1700 skins
+        for version in range(version_start, version_end):
+            data_downloader.downloadAllChampions(str(version))
 
-except cE.FailFetch as ff:
-    print(f"Error: {ff}")
-except cE.EmptyChampionList as ecl:
-    print(f"Error: {ecl}")
+    except cE.FailFetch as ff:
+        print(f"Error: {ff}")
+    except cE.EmptyChampionList as ecl:
+        print(f"Error: {ecl}")
