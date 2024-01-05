@@ -3,11 +3,12 @@ import os
 import customErrors as cE
 import concurrent.futures
 
-class LolImageDownloader:
-    def __init__(self, data_url, image_base_url):
-        self.data_url = data_url
-        self.image_base_url = image_base_url
+class lolDataProcessor:
+    def __init__(self, data_url=None, image_base_url=None):
+        self.data_url = data_url or "https://ddragon.leagueoflegends.com/cdn/13.24.1/data/en_US/champion.json"
+        self.image_base_url = image_base_url or "https://ddragon.leagueoflegends.com/cdn/img/champion/splash/"
         self.data_list = [] 
+        self.categories = {}
 
     def fetchJson(self):
         """ Fetches json data from Riot's API """
@@ -56,20 +57,14 @@ class LolImageDownloader:
             futures = [executor.submit(self.download_champion_image, champion, version) for champion in self.data_list]
             concurrent.futures.wait(futures)
 
-def download(version_start, version_end):
-    ''' Script to download the champion images based on the LolImageDownloader class'''
-    try:
-        data_downloader = LolImageDownloader(
-            "https://ddragon.leagueoflegends.com/cdn/13.24.1/data/en_US/champion.json",
-            "https://ddragon.leagueoflegends.com/cdn/img/champion/splash/"
-        )
-        data_downloader.fetch_champions("data")
+    def classification(self):
 
-        # The actual location of the images is not clear, so in this range, it will cover roughly 1700 skins
-        for version in range(version_start, version_end):
-            data_downloader.downloadAllChampions(str(version))
+        json_data = self.fetchJson()
 
-    except cE.FailFetch as ff:
-        print(f"Error: {ff}")
-    except cE.EmptyChampionList as ecl:
-        print(f"Error: {ecl}")
+        for champion, tags in json_data["data"].items():
+            for tag in tags.get('tags', []):
+                if tag not in self.categories:
+                    self.categories[tag] = []
+                self.categories[tag].append(champion)
+
+
